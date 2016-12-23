@@ -178,58 +178,41 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     blinkpct.to_csv(outfile, index=True, header=True)
     subj_sess_snr = calc_subj_snr(noblinkdata, blinktimes, ao_eprime)
     subj_info_snr = sessioninfo.merge(subj_sess_snr, left_on=['Subject ID','Session'], right_index=True)
-    subj_info_snr = subj_info_snr.merge(blinkpct, left_on=['Subject ID','Session'], right_index=True)
+    subj_info_snr = subj_info_snr.merge(pd.DataFrame(blinkpct), left_on=['Subject ID','Session'], right_index=True)
     outfile = os.path.join(outdir, 'LCIP_Oddball_SNR.csv')
     subj_info_snr.to_csv(outfile, index=False, header=True)    
     
     
-#if __name__ == '__main__':
-#
-#'/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/OddballP300_LCI_Pilot_007-1_8-29-2016.csv'
-#    if len(sys.argv) == 1:
-#        print 'USAGE: %s <file> <output directory>' % os.path.basename(sys.argv[0])
-#        print 'Takes pupillometer data text file outputs csv files for use'
-#        print 'in further analysis.'
-#    else:
-#        filename = sys.argv[1]
-#        outdir = sys.argv[2]
-#        parse_pupil_data(filename, outdir)
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        print 'USAGE: %s <raw pupil file> <behavioral file> <output directory>' % os.path.basename(sys.argv[0])
+        print 'Takes pupillometer data text file and behavioral data as inputs.'
+        print 'Parses pupil data, removes artifacts and calculates signal to noise'
+        print 'ratio (target vs. non-targets). Outputs csv files for use in'
+        print 'further analysis.'
+    else:
+        pupil_fname = sys.argv[1]
+        behav_fname = sys.argv[2]
+        outdir = sys.argv[3]
+        proc_oddball(pupil_fname, behav_fname, outdir)
 
 
 #########################################################
 #                         TESTING                       #
 #########################################################
-pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20160913_0902_20160915_1246.dat.txt'
-behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects.csv'
-outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
-
-
-qc_plots=True
-# Plot timecourse
-sns.set_style('ticks')
-plt_pre = 0.5
-plt_post = 4
-plt_pre_event = event_time - pd.tseries.offsets.relativedelta(seconds=plt_pre)
-
-plt_baseline = pupilprofile[plt_pre_event:event_time].mean()
-plt_post_event = event_time + pd.tseries.offsets.relativedelta(seconds=plt_post)
-plt_normed_post_event = pupilprofile[event_time:plt_post_event] - plt_baseline
-plt_normed_post_event[event_time:plt_post_event].plot()
-
-
-#################################
-#           Misc. code          #
-#################################
-
-## Save out data
-#    aoCols = ['Subject ID', 'Time', 'Device ID', 'Eye Measured', 'Record ID',
-#              'Profile Normal', 'Measurement Duration',
-#              'Pupil Profile']  
-#    ao_outfile = os.path.join(outdir,'LCIP_AO_Data.csv')
-#    save_to_csv(ao_df, ao_outfile, aoCols)
-
-##  To get index into float
-# a = noblinkdata.index - noblinkdata.index[0]
-# a.components.milliseconds/1000.
-# or
-# a.microseconds/1000000.
+#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects.csv'
+#outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
+#
+#
+#qc_plots=True
+## Plot timecourse
+#sns.set_style('ticks')
+#plt_pre = 0.5
+#plt_post = 4
+#plt_pre_event = event_time - pd.tseries.offsets.relativedelta(seconds=plt_pre)
+#
+#plt_baseline = pupilprofile[plt_pre_event:event_time].mean()
+#plt_post_event = event_time + pd.tseries.offsets.relativedelta(seconds=plt_post)
+#plt_normed_post_event = pupilprofile[event_time:plt_post_event] - plt_baseline
+#plt_normed_post_event[event_time:plt_post_event].plot()
