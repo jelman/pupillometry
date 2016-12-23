@@ -3,6 +3,14 @@
 Created on Wed Sep 21 10:40:01 2016
 
 @author: jelman
+
+This is the first script to run on raw data file from pupillometer. 
+It will parse the text file and output a spreadsheet with one row 
+per trial that can be used for input to proc scripts that will perform 
+cleaning and averaging.
+
+This script can parse dauditory oddball trials, and is specific to the 
+LCIP project.
 """
 
 import itertools

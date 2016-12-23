@@ -3,6 +3,12 @@
 Created on Fri Sep 16 12:00:45 2016
 
 @author: jelman
+
+This script takes as input a data file that has been parsed with 
+the parse_oddball_LCIP.py script. It performs interpolation, artifact 
+removal, and averaging. It calculates pupil dilation for targets and 
+non-targets, then calculates a signal to noise ratio for use in 
+further analysis. 
 """
 
 import itertools

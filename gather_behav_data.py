@@ -3,6 +3,9 @@
 Created on Wed Sep 21 09:30:17 2016
 
 @author: jelman
+
+Script to concatenate all subjects' auditory oddball behavioral files.
+Needed for proc_oddball_LCIP.py to match dilations with trial types.
 """
 
 import os
