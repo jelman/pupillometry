@@ -152,7 +152,7 @@ def get_blink_pct(blinktimes):
     blinkpct = blinktimes.apply(np.mean)
     blinkpct.name = 'blink_pct'
     blinkpct.index = pd.MultiIndex.from_tuples(blinkpct.index) 
-    blinkpct.index.names = ['Subject_ID', 'Session']
+    blinkpct.index.names = ['Subject ID', 'Session']
     return blinkpct
     
     
@@ -173,12 +173,12 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     if not os.path.exists(qc_dir):
         os.makedirs(qc_dir)
     noblinkdata, blinktimes = clean_all(parsed_df, qc_dir=qc_dir)
-    blinkpct = get_blink_pct(blinktimes, qc_dir)
+    blinkpct = get_blink_pct(blinktimes)
     outfile = os.path.join(qc_dir, "Blink_Percentages.csv")
     blinkpct.to_csv(outfile, index=True, header=True)
     subj_sess_snr = calc_subj_snr(noblinkdata, blinktimes, ao_eprime)
     subj_info_snr = sessioninfo.merge(subj_sess_snr, left_on=['Subject ID','Session'], right_index=True)
-    # subj_info_snr = subj_info_snr.merge(blinkpct, left_on=['Subject ID','Session'], right_index=True)
+    subj_info_snr = subj_info_snr.merge(blinkpct, left_on=['Subject ID','Session'], right_index=True)
     outfile = os.path.join(outdir, 'LCIP_Oddball_SNR.csv')
     subj_info_snr.to_csv(outfile, index=False, header=True)    
     
