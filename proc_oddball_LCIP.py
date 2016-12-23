@@ -11,11 +11,8 @@ non-targets, then calculates a signal to noise ratio for use in
 further analysis. 
 """
 
-import itertools
 import os
-import re
 import sys
-from glob import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -86,7 +83,7 @@ def clean_sess(sessdf, qc_dir, subid, session):
     fname = os.path.join(qc_dir, ''.join([subid,'_',str(session),'_stublinks.png']))
     plt.plot(range(len(origdata)), origdata, sns.xkcd_rgb["pale red"], 
              range(len(noblinkdata)), noblinkdata, sns.xkcd_rgb["denim blue"], 
-             blinktimes, sns.xkcd_rgb["amber"], lw=1)
+             blinktimes.values, sns.xkcd_rgb["amber"], lw=1)
     plt.title(''.join(['Subject: ',subid,', Session:',str(session)]), fontsize=20)
     plt.savefig(fname)
     plt.close()
@@ -167,7 +164,7 @@ def calc_subj_snr(noblinkdata, blinktimes, ao_eprime):
     
     
 def proc_oddball(pupil_fname, behav_fname, outdir):
-    parsed_df =  parse_ao.parse_pupil_data(pupil_fname)
+    parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
     parsed_df = parsed_df.ix[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
@@ -205,6 +202,8 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
 pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20160913_0902_20160915_1246.dat.txt'
 behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects.csv'
 outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
+
+
 qc_plots=True
 # Plot timecourse
 sns.set_style('ticks')
