@@ -128,27 +128,6 @@ def get_trial_nums(df):
    trialnums = [int(i) for i in trialnums]
    return trialnums
 
-def create_ds_template(df):
-    templateDF = pd.DataFrame({"ID": df['Subject ID'],
-                           "Task (DS)": "",
-                           "Time": df['Time'],
-                           "Trial #": "",
-                           "Bx Trial": "",
-                           "Min": np.nan,
-                           "Max": np.nan,
-                           "Pupil Profile": df['Pupil Profile']},
-                           columns=['ID','Task (DS)','Time','Trial #','Bx Trial',
-                                    'Min','Max','Pupil Profile'])
-    trialnums = get_trial_nums(templateDF)
-    templateDF['Task (DS)'] = ['DS'+str(x) for x in trialnums]
-    templateDF['Trial #'] = trialnums
-    pprofileDF = templateDF.pop('Pupil Profile').str.split('\t', expand=True)
-    pprofileDF = pprofileDF.rename(columns=lambda x: str(x+1) + 'st data pt')
-    templateDF = pd.concat([templateDF,pprofileDF], axis=1)
-    templateDF['Min'] = templateDF.ix[:,'1st data pt':].min(axis=1, skipna=True)
-    templateDF['Max'] = templateDF.ix[:,'1st data pt':].max(axis=1, skipna=True)
-    return templateDF
-
 
 def parse_pupil_data(filename, outdir):
     lines = read_file(filename)
@@ -176,10 +155,7 @@ def parse_pupil_data(filename, outdir):
     ds_fname = 'LCIP_DS_Raw_' + timestamp + '.csv'
     ds_outfile = os.path.join(outdir, ds_fname)
     save_to_csv(ds_df, ds_outfile, dsCols)
-    ds_template = create_ds_template(ds_df)
-    ds_temp_fname = 'LCIP_DS_Data_' timestamp + '.csv'
-    ds_temp_outfile = os.path.join(outdir,ds_temp_fname)
-    save_to_csv(ds_template, ds_temp_outfile)
+
 
 
 if __name__ == '__main__':
