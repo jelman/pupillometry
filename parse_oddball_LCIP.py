@@ -4,12 +4,12 @@ Created on Wed Sep 21 10:40:01 2016
 
 @author: jelman
 
-This is the first script to run on raw data file from pupillometer. 
-It will parse the text file and output a spreadsheet with one row 
-per trial that can be used for input to proc scripts that will perform 
+This is the first script to run on raw data file from pupillometer.
+It will parse the text file and output a spreadsheet with one row
+per trial that can be used for input to proc scripts that will perform
 cleaning and averaging.
 
-This script can parse dauditory oddball trials, and is specific to the 
+This script can parse dauditory oddball trials, and is specific to the
 LCIP project.
 """
 
@@ -18,6 +18,7 @@ import os
 import re
 import sys
 import pandas as pd
+from datetime import datetime
 
 
 
@@ -64,15 +65,15 @@ def split_trial_lists(lines):
     # Break list into sublists of trials
     sublists = [list(x[1]) for x in itertools.groupby(lines, lambda x: x=='BREAK') if not x[0]]
     return sublists
-    
-    
+
+
 def find_lcip_subs(trial_lists):
     # Find and return only trials of LCIP subjects
     return [tlist for tlist in trial_lists for s in tlist if "Subject ID = LCIP" in s]
-    
+
 
 def get_task_lists(trial_lists):
-    # Initialize list 
+    # Initialize list
     sublistsAO = []
     # Append data list
     for sublist in trial_lists:
@@ -114,21 +115,24 @@ def parse_pupil_data(filename, outdir=None):
     parsed_df = parsed_df.sort_values(['Subject ID', 'Time']).reset_index(drop=True)
     parsed_df['Session'] = get_session_nums(parsed_df)
     if outdir:
-        outfile = os.path.join(outdir, 'LCIP_Oddball_Parsed.csv')
+        timestamp = datetime.now().strftime("%Y%m%d")
+        outname = 'LCIP_Oddball_Parsed_' + timestamp + '.csv'
+        outfile = os.path.join(outdir, outname)
         try:
             parsed_df.to_csv(outfile, index=False)
             print 'Saved to %s' %(outfile)
+            return parsed_df
         except IOError:
             print 'Error: Could not save to %s' %(outfile)
     else:
         return parsed_df
-    
+
 
 if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         print 'USAGE: %s <file> <output directory>' % os.path.basename(sys.argv[0])
-        print 'Takes pupillometer data text file as input. Extracts oddball' 
+        print 'Takes pupillometer data text file as input. Extracts oddball'
         print 'trials and parses for further processing.'
     else:
         filename = sys.argv[1]

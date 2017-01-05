@@ -4,9 +4,9 @@ Created on Mon Jun 20 10:24:32 2016
 
 @author: jelman
 
-This is the first script to run on raw data file from pupillometer. 
-It will parse the text file and output a spreadsheet with one row 
-per trial that can be used for input to proc scripts that will perform 
+This is the first script to run on raw data file from pupillometer.
+It will parse the text file and output a spreadsheet with one row
+per trial that can be used for input to proc scripts that will perform
 cleaning and averaging.
 
 This script can parse digit span and pupil light reflex trials.
@@ -18,6 +18,7 @@ import re
 import sys
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 
 def read_file(filename):
@@ -63,12 +64,12 @@ def split_trial_lists(lines):
     # Break list into sublists of trials
     sublists = [list(x[1]) for x in itertools.groupby(lines, lambda x: x=='BREAK') if not x[0]]
     return sublists
-    
-    
+
+
 def find_lcip_subs(trial_lists):
     # Find and return only trials of LCIP subjects
     return [tlist for tlist in trial_lists for s in tlist if "Subject ID = LCIP" in s]
-    
+
 
 def get_task_lists(trial_lists):
     # Initialize list for digit span data and pupil light reflex
@@ -126,7 +127,7 @@ def get_trial_nums(df):
    trialnums = list(itertools.chain.from_iterable(trialnums))
    trialnums = [int(i) for i in trialnums]
    return trialnums
-     
+
 def create_ds_template(df):
     templateDF = pd.DataFrame({"ID": df['Subject ID'],
                            "Task (DS)": "",
@@ -148,7 +149,7 @@ def create_ds_template(df):
     templateDF['Max'] = templateDF.ix[:,'1st data pt':].max(axis=1, skipna=True)
     return templateDF
 
-    
+
 def parse_pupil_data(filename, outdir):
     lines = read_file(filename)
     clean_lines = clean_text(lines)
@@ -156,13 +157,15 @@ def parse_pupil_data(filename, outdir):
     trial_lists = split_trial_lists(clean_lines)
     lcip_lists = find_lcip_subs(trial_lists)
     sublistsPLR, sublistsDS = get_task_lists(lcip_lists)
+    timestamp = datetime.now().strftime("%Y%m%d")
     # Pupil Light Reflex
     plr_df = create_plr_df(sublistsPLR)
     plr_df = plr_df.sort_values(['Subject ID','Time']).reset_index(drop=True)
     plrCols = ['Subject ID', 'Time', 'Device ID', 'Eye Measured', 'Record ID',
           'Profile Normal', 'Diameter', 'Measurement Duration', 'Mean/Max C. Vel',
           'dilation velocity', 'Lat', '75% recovery time', 'Pupil Profile']
-    plr_outfile = os.path.join(outdir,'LCIP_PLR_Raw.csv')
+    plr_fname = 'LCIP_PLR_Raw_' + timestamp + '.csv'
+    plr_outfile = os.path.join(outdir,plr_fname)
     save_to_csv(plr_df, plr_outfile, plrCols)
     # Digit Span
     ds_df = create_ds_df(sublistsDS)
@@ -170,10 +173,12 @@ def parse_pupil_data(filename, outdir):
     dsCols = ['Subject ID', 'Time', 'Device ID', 'Eye Measured', 'Record ID',
               'Profile Normal', 'Diameter', 'Measurement Duration',
               'Pupil Profile']
-    ds_outfile = os.path.join(outdir,'LCIP_DS_Raw.csv')
+    ds_fname = 'LCIP_DS_Raw_' + timestamp + '.csv'
+    ds_outfile = os.path.join(outdir, ds_fname)
     save_to_csv(ds_df, ds_outfile, dsCols)
     ds_template = create_ds_template(ds_df)
-    ds_temp_outfile = os.path.join(outdir,'LCIP_DS_Data.csv')
+    ds_temp_fname = 'LCIP_DS_Data_' timestamp + '.csv'
+    ds_temp_outfile = os.path.join(outdir,ds_temp_fname)
     save_to_csv(ds_template, ds_temp_outfile)
 
 
@@ -188,4 +193,3 @@ if __name__ == '__main__':
         filename = sys.argv[1]
         outdir = sys.argv[2]
         parse_pupil_data(filename, outdir)
-
