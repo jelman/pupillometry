@@ -17,32 +17,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-sys.path.insert(0,'/home/jelman/netshare/K/code/Pupillometry/LCIP')
 import parse_oddball_LCIP as parse_ao
 
 import matlab_wrapper
-
-
-
-#def create_ao_template(df):
-#    trialnums = get_trial_nums(df)
-#    templateDF = pd.DataFrame({"ID": df['Subject ID'],
-#                           "Task (AO)": ['AO'+str(x) for x in trialnums],
-#                           "Time": df['Time'],
-#                           "Trial #": trialnums,
-#                           "Min": np.nan,
-#                           "Max": np.nan,
-#                           "Pupil Profile": df['Pupil Profile']},
-#                           columns=['ID','Task (AO)','Time','Trial #',
-#                                    'Min','Max','Pupil Profile'])
-#    pprofileDF = templateDF.pop('Pupil Profile').str.split('\t', expand=True)
-#    pprofileDF = pprofileDF.rename(columns=lambda x: str(x+1) + 'st data pt')
-#    templateDF = pd.concat([templateDF,pprofileDF], axis=1)
-#    templateDF['Min'] = templateDF.ix[:,'1st data pt':].min(axis=1, skipna=True)
-#    templateDF['Max'] = templateDF.ix[:,'1st data pt':].max(axis=1, skipna=True)
-#    return templateDF
-
 
 
 def get_pupil_profile(df):
