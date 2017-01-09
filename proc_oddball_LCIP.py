@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import parse_oddball_LCIP as parse_ao
-
+from datetime import datetime
 import matlab_wrapper
 
 
@@ -151,12 +151,15 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
         os.makedirs(qc_dir)
     noblinkdata, blinktimes = clean_all(parsed_df, qc_dir=qc_dir)
     blinkpct = get_blink_pct(blinktimes)
-    outfile = os.path.join(qc_dir, "Blink_Percentages.csv")
+    tstamp = datetime.now().strftime("%Y%m%d")
+    blink_fname = "Blink_Percentages_" + tstamp + ".csv"
+    outfile = os.path.join(qc_dir, blink_fname)
     blinkpct.to_csv(outfile, index=True, header=True)
     subj_sess_snr = calc_subj_snr(noblinkdata, blinktimes, ao_eprime)
     subj_info_snr = sessioninfo.merge(subj_sess_snr, left_on=['Subject ID','Session'], right_index=True)
     subj_info_snr = subj_info_snr.merge(pd.DataFrame(blinkpct), left_on=['Subject ID','Session'], right_index=True)
-    outfile = os.path.join(outdir, 'LCIP_Oddball_SNR.csv')
+    snr_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
+    outfile = os.path.join(outdir, snr_fname)
     subj_info_snr.to_csv(outfile, index=False, header=True)    
     
     
@@ -178,7 +181,7 @@ if __name__ == '__main__':
 #                         TESTING                       #
 #########################################################
 #pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
-#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects.csv'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
 #outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
 #
 #
