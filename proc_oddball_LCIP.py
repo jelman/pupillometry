@@ -95,8 +95,9 @@ def get_events(pupilprofile, eprime):
     return trg_events, std_events
 
 
-def calc_max_dilation(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
-    all_dilations = []
+def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
+    mean_dilations = []
+    max_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
@@ -107,26 +108,11 @@ def calc_max_dilation(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpos
             continue
         else:
             normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
-            mean_dilation = normed_post_event.max()
-            all_dilations.append(mean_dilation)
-    return np.nanmean(all_dilations)
-
-
-def calc_mean_dilation(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
-    all_dilations = []
-    for event in events:
-        pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
-        baseline = pupilprofile[pre_event:event].mean()
-        post_event_start = event + pd.tseries.offsets.relativedelta(seconds=tpost_start)
-        post_event_end = event + pd.tseries.offsets.relativedelta(seconds=tpost_end)
-        if blinks[event:post_event_end].mean() >= .5:
-            print 'Blinks during >50% of trial, skipping...'
-            continue
-        else:
-            normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
-            mean_dilation = normed_post_event.mean()
-            all_dilations.append(mean_dilation)
-    return np.nanmean(all_dilations)
+            mean_dil = normed_post_event.mean()
+            max_dil = normed_post_event.max()
+            mean_dilations.append(mean_dil)
+            max_dilations.append(max_dil)
+    return np.nanmean(mean_dilations), np.nanmean(max_dilations)
   
     
 def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
@@ -136,11 +122,9 @@ def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
                                  (ao_eprime['Session']==sess)]
     eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
     trg_events, std_events = get_events(noblink_series, eprime_sess)
-    trg_max_dil = calc_max_dilation(trg_events, noblink_series, blinktime_series)
-    std_max_dil = calc_max_dilation(std_events, noblink_series, blinktime_series)
+    trg_mean_dil, trg_max_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
+    std_mean_dil, std_max_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
     sess_snr_max = trg_max_dil / std_max_dil
-    trg_mean_dil = calc_mean_dilation(trg_events, noblink_series, blinktime_series)
-    std_mean_dil = calc_mean_dilation(std_events, noblink_series, blinktime_series)
     sess_snr_mean = trg_mean_dil / std_mean_dil 
     resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
                       Std_max = std_max_dil, Std_mean = std_mean_dil,
@@ -218,6 +202,7 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime):
         
 def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
+    parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
     parsed_df = parsed_df.ix[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
@@ -238,7 +223,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     snr_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
     outfile = os.path.join(outdir, snr_fname)
     subj_info_snr.to_csv(outfile, index=False, header=True)    
-    
+    plot_dilation(noblinkdata, blinktimes, ao_eprime)
     
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -260,16 +245,3 @@ if __name__ == '__main__':
 pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
 behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
 outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
-#
-#
-qc_plots=True
-# Plot timecourse
-sns.set_style('ticks')
-plt_pre = 0.5
-plt_post = 4
-plt_pre_event = event_time - pd.tseries.offsets.relativedelta(seconds=plt_pre)
-
-plt_baseline = pupilprofile[plt_pre_event:event_time].mean()
-plt_post_event = event_time + pd.tseries.offsets.relativedelta(seconds=plt_post)
-plt_normed_post_event = pupilprofile[event_time:plt_post_event] - plt_baseline
-plt_normed_post_event[event_time:plt_post_event].plot()
