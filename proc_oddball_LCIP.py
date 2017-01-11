@@ -42,7 +42,7 @@ def upsample_interp(pupilprofile):
 def stublinks(ts):
     matlab = matlab_wrapper.MatlabSession()
     matlab.eval("addpath(genpath('/home/jelman/netshare/K/code/Pupillometry/LCIP'))")
-    res = matlab.workspace.stublinks_new(ts.PupilProfile.values,0,0.,[],0.1,15.)
+    res = matlab.workspace.stublinks_new(ts.PupilProfile.values,0,0.,[],0.5,15.)
     origdata = res['RescaleData'].tolist()
     blinktimes = pd.Series(res['BlinkTimes'].tolist(), 
                            index=ts.index)
@@ -95,7 +95,7 @@ def get_events(pupilprofile, eprime):
     return trg_events, std_events
 
 
-def calc_max_dilation(events, pupilprofile, blinks, tpre=1, tpost=2.5):
+def calc_max_dilation(events, pupilprofile, blinks, tpre=.5, tpost=2.5):
     all_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
@@ -109,7 +109,7 @@ def calc_max_dilation(events, pupilprofile, blinks, tpre=1, tpost=2.5):
         tdelta = pd.tseries.offsets.relativedelta(seconds=tpost)
         max_dilation = normed_post_event[event:event+tdelta].max()
         all_dilations.append(max_dilation)
-    return np.mean(all_dilations)
+    return np.nanmean(all_dilations)
 
 
 def calc_mean_dilation(events, pupilprofile, blinks, tpre=.5, tpost=2.5):
@@ -126,8 +126,8 @@ def calc_mean_dilation(events, pupilprofile, blinks, tpre=.5, tpost=2.5):
         tdelta = pd.tseries.offsets.relativedelta(seconds=tpost)
         mean_dilation = normed_post_event[event:event+tdelta].mean()
         all_dilations.append(mean_dilation)
-    return np.mean(all_dilations)
-    
+    return np.nanmean(all_dilations)
+  
     
 def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
     blinktime_series = blinktimes[noblink_series.name]
@@ -163,11 +163,65 @@ def calc_subj_snr(noblinkdata, blinktimes, ao_eprime):
     return pd.DataFrame(subj_sess_snr)
     
     
+def event_waveforms(trg_events, std_events, pupilprofile, blinks, tpre=.5, pltpre=2, pltpost=4):
+    subj_events = pd.DataFrame(columns=["Subject","Session","Condition","Time","Dilation"])
+    for trg_event in trg_events:
+        base_event = trg_event - pd.tseries.offsets.relativedelta(seconds=tpre)
+        pltpre_event = trg_event - pd.tseries.offsets.relativedelta(seconds=pltpre)
+        baseline = pupilprofile[base_event:trg_event].mean()
+        post_event = trg_event + pd.tseries.offsets.relativedelta(seconds=pltpost)
+        if blinks[trg_event:post_event].mean() >= .5:
+            print 'Blinks during >50% of trial, skipping...'
+            continue
+        else:
+            normed_trg_event = pupilprofile[pltpre_event:post_event] - baseline
+            normed_trg_event.index = (normed_trg_event.index - trg_event) / np.timedelta64(1, 's')
+            normed_trg_event.index.name = 'Time'
+            normed_trg_event = pd.DataFrame(normed_trg_event).unstack().reset_index(name="Dilation")
+            normed_trg_event = normed_trg_event.rename(columns={"level_0":"Subject","level_1":"Session"})
+            normed_trg_event["Condition"] = "Target"
+            subj_events = subj_events.append(normed_trg_event, ignore_index=True)
+    for std_event in std_events:
+        base_event = std_event - pd.tseries.offsets.relativedelta(seconds=tpre)
+        pltpre_event = std_event - pd.tseries.offsets.relativedelta(seconds=pltpre)
+        baseline = pupilprofile[base_event:std_event].mean()
+        post_event = std_event + pd.tseries.offsets.relativedelta(seconds=pltpost)
+        if blinks[std_event:post_event].mean() >= .5:
+            print 'Blinks during >50% of trial, skipping...'
+            continue
+        else:
+            normed_std_event = pupilprofile[pltpre_event:post_event] - baseline
+            normed_std_event.index = (normed_std_event.index - std_event) / np.timedelta64(1, 's')
+            normed_std_event.index.name = 'Time'
+            normed_std_event = pd.DataFrame(normed_std_event).unstack().reset_index(name="Dilation")
+            normed_std_event = normed_std_event.rename(columns={"level_0":"Subject","level_1":"Session"})
+            normed_std_event["Condition"] = "Standard"
+            subj_events = subj_events.append(normed_std_event, ignore_index=True)
+    mean_subj = subj_events.groupby(['Subject','Condition','Session','Time'])['Dilation'].mean().reset_index()    
+    return mean_subj
+
+def plot_dilation(noblinkdata, blinktimes, ao_eprime):
+    all_events = pd.DataFrame(columns=["Subject","Condition","Session","Time","Dilation"])
+    for colname, col in noblinkdata.iteritems():
+        noblink_series = noblinkdata[colname]
+        blinktime_series = blinktimes[colname]
+        subid, sess = noblink_series.name
+        eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
+                                     (ao_eprime['Session']==sess)]
+        eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
+        trg_events, std_events = get_events(noblink_series, eprime_sess)
+        mean_subj = event_waveforms(trg_events, std_events, noblink_series, blinktime_series, tpre=.5, pltpre=2, pltpost=4)
+        all_events = all_events.append(mean_subj)
+        all_events = all_events.groupby(['Subject','Condition','Time'])['Dilation'].mean().reset_index()
+    sns.tsplot(data=all_events, time="Time", 
+       condition="Condition", unit="Subject", value="Dilation")
+        
 def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
     parsed_df = parsed_df.ix[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
+    ao_eprime.loc[:,'Tone_Onset'] = ao_eprime['Tone_Onset'] + 3000
     sessioninfo = parsed_df[['Subject ID', 'Time', 'Session', 'Device ID', 'Eye Measured']]
     qc_dir = os.path.join(outdir,'QC') 
     if not os.path.exists(qc_dir):
@@ -208,14 +262,14 @@ behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/odd
 outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
 #
 #
-#qc_plots=True
-## Plot timecourse
+qc_plots=True
+# Plot timecourse
 sns.set_style('ticks')
 plt_pre = 0.5
 plt_post = 4
 plt_pre_event = event_time - pd.tseries.offsets.relativedelta(seconds=plt_pre)
-#
+
 plt_baseline = pupilprofile[plt_pre_event:event_time].mean()
-#plt_post_event = event_time + pd.tseries.offsets.relativedelta(seconds=plt_post)
-#plt_normed_post_event = pupilprofile[event_time:plt_post_event] - plt_baseline
-#plt_normed_post_event[event_time:plt_post_event].plot()
+plt_post_event = event_time + pd.tseries.offsets.relativedelta(seconds=plt_post)
+plt_normed_post_event = pupilprofile[event_time:plt_post_event] - plt_baseline
+plt_normed_post_event[event_time:plt_post_event].plot()
