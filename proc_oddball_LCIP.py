@@ -146,44 +146,36 @@ def calc_subj_snr(noblinkdata, blinktimes, ao_eprime):
     subj_sess_snr.index = pd.MultiIndex.from_tuples(subj_sess_snr.index)    
     return pd.DataFrame(subj_sess_snr)
     
-    
-def event_waveforms(trg_events, std_events, pupilprofile, blinks, tpre=.5, pltpre=2, pltpost=4):
+
+def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=2, pltpost=4):
+    base_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
+    pltpre_event = event - pd.tseries.offsets.relativedelta(seconds=pltpre)
+    baseline = pupilprofile[base_event:event].mean()
+    post_event = event + pd.tseries.offsets.relativedelta(seconds=pltpost)
+    if blinks[event:post_event].mean() >= .5:
+        print 'Blinks during >50% of trial, skipping...'
+    else:
+        normed_event = pupilprofile[pltpre_event:post_event] - baseline
+        normed_event.index = (normed_event.index - event) / np.timedelta64(1, 's')
+        normed_event.index.name = 'Time'
+        normed_event = pd.DataFrame(normed_event).unstack().reset_index(name="Dilation")
+        normed_event = normed_event.rename(columns={"level_0":"Subject","level_1":"Session"})
+        normed_event["Condition"] = condition
+        return normed_event
+  
+        
+def subj_waveforms(trg_events, std_events, pupilprofile, blinks, **kwargs):
     subj_events = pd.DataFrame(columns=["Subject","Session","Condition","Time","Dilation"])
     for trg_event in trg_events:
-        base_event = trg_event - pd.tseries.offsets.relativedelta(seconds=tpre)
-        pltpre_event = trg_event - pd.tseries.offsets.relativedelta(seconds=pltpre)
-        baseline = pupilprofile[base_event:trg_event].mean()
-        post_event = trg_event + pd.tseries.offsets.relativedelta(seconds=pltpost)
-        if blinks[trg_event:post_event].mean() >= .5:
-            print 'Blinks during >50% of trial, skipping...'
-            continue
-        else:
-            normed_trg_event = pupilprofile[pltpre_event:post_event] - baseline
-            normed_trg_event.index = (normed_trg_event.index - trg_event) / np.timedelta64(1, 's')
-            normed_trg_event.index.name = 'Time'
-            normed_trg_event = pd.DataFrame(normed_trg_event).unstack().reset_index(name="Dilation")
-            normed_trg_event = normed_trg_event.rename(columns={"level_0":"Subject","level_1":"Session"})
-            normed_trg_event["Condition"] = "Target"
-            subj_events = subj_events.append(normed_trg_event, ignore_index=True)
+        normed_event = event_waveform(trg_event, pupilprofile, blinks, "Target", tpre=.5, pltpre=2, pltpost=4)
+        subj_events = subj_events.append(normed_event, ignore_index=True)
     for std_event in std_events:
-        base_event = std_event - pd.tseries.offsets.relativedelta(seconds=tpre)
-        pltpre_event = std_event - pd.tseries.offsets.relativedelta(seconds=pltpre)
-        baseline = pupilprofile[base_event:std_event].mean()
-        post_event = std_event + pd.tseries.offsets.relativedelta(seconds=pltpost)
-        if blinks[std_event:post_event].mean() >= .5:
-            print 'Blinks during >50% of trial, skipping...'
-            continue
-        else:
-            normed_std_event = pupilprofile[pltpre_event:post_event] - baseline
-            normed_std_event.index = (normed_std_event.index - std_event) / np.timedelta64(1, 's')
-            normed_std_event.index.name = 'Time'
-            normed_std_event = pd.DataFrame(normed_std_event).unstack().reset_index(name="Dilation")
-            normed_std_event = normed_std_event.rename(columns={"level_0":"Subject","level_1":"Session"})
-            normed_std_event["Condition"] = "Standard"
-            subj_events = subj_events.append(normed_std_event, ignore_index=True)
+        normed_event = event_waveform(std_event, pupilprofile, blinks, "Standard", tpre=.5, pltpre=2, pltpost=4)
+        subj_events = subj_events.append(normed_event, ignore_index=True)
     mean_subj = subj_events.groupby(['Subject','Condition','Session','Time'])['Dilation'].mean().reset_index()    
     return mean_subj
 
+    
 def plot_dilation(noblinkdata, blinktimes, ao_eprime):
     all_events = pd.DataFrame(columns=["Subject","Condition","Session","Time","Dilation"])
     for colname, col in noblinkdata.iteritems():
@@ -194,12 +186,13 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime):
                                      (ao_eprime['Session']==sess)]
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
         trg_events, std_events = get_events(noblink_series, eprime_sess)
-        mean_subj = event_waveforms(trg_events, std_events, noblink_series, blinktime_series, tpre=.5, pltpre=2, pltpost=4)
+        mean_subj = subj_waveforms(trg_events, std_events, noblink_series, blinktime_series)
         all_events = all_events.append(mean_subj)
         all_events = all_events.groupby(['Subject','Condition','Time'])['Dilation'].mean().reset_index()
     sns.tsplot(data=all_events, time="Time", 
        condition="Condition", unit="Subject", value="Dilation")
-        
+     
+    
 def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
     parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
