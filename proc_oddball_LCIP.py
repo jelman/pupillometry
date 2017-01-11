@@ -95,37 +95,37 @@ def get_events(pupilprofile, eprime):
     return trg_events, std_events
 
 
-def calc_max_dilation(events, pupilprofile, blinks, tpre=.5, tpost=2.5):
+def calc_max_dilation(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
     all_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
-        post_event = event + pd.tseries.offsets.relativedelta(seconds=tpost)
-        if blinks[event:post_event].mean() >= .5:
+        post_event_start = event + pd.tseries.offsets.relativedelta(seconds=tpost_start)
+        post_event_end = event + pd.tseries.offsets.relativedelta(seconds=tpost_end)
+        if blinks[event:post_event_end].mean() >= .5:
             print 'Blinks during >50% of trial, skipping...'
             continue
         else:
-            normed_post_event = pupilprofile[event:post_event] - baseline
-        tdelta = pd.tseries.offsets.relativedelta(seconds=tpost)
-        max_dilation = normed_post_event[event:event+tdelta].max()
-        all_dilations.append(max_dilation)
+            normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
+            mean_dilation = normed_post_event.max()
+            all_dilations.append(mean_dilation)
     return np.nanmean(all_dilations)
 
 
-def calc_mean_dilation(events, pupilprofile, blinks, tpre=.5, tpost=2.5):
+def calc_mean_dilation(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
     all_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
-        post_event = event + pd.tseries.offsets.relativedelta(seconds=tpost)
-        if blinks[event:post_event].mean() >= .5:
+        post_event_start = event + pd.tseries.offsets.relativedelta(seconds=tpost_start)
+        post_event_end = event + pd.tseries.offsets.relativedelta(seconds=tpost_end)
+        if blinks[event:post_event_end].mean() >= .5:
             print 'Blinks during >50% of trial, skipping...'
             continue
         else:
-            normed_post_event = pupilprofile[event:post_event] - baseline
-        tdelta = pd.tseries.offsets.relativedelta(seconds=tpost)
-        mean_dilation = normed_post_event[event:event+tdelta].mean()
-        all_dilations.append(mean_dilation)
+            normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
+            mean_dilation = normed_post_event.mean()
+            all_dilations.append(mean_dilation)
     return np.nanmean(all_dilations)
   
     
