@@ -118,12 +118,7 @@ def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost_start=1, t
     return np.nanmean(mean_dilations), np.nanmean(max_dilations), np.nanmean(sd_dilations)
   
     
-def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
-    blinktime_series = blinktimes[noblink_series.name]
-    subid, sess = noblink_series.name
-    eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
-                                 (ao_eprime['Session']==sess)]                        
-    eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
+def calc_sess_stats(noblink_series, blinktime_series, eprime_sess):
     trg_events, std_events = get_events(noblink_series, eprime_sess)
     trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
     std_mean_dil, std_max_dil, std_sd_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
@@ -136,7 +131,26 @@ def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
                       CNR=sess_cnr)
     return pd.Series(resultdict)
    
-   
+
+def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="CNR"):
+    subid, sess = noblink_series.name
+    blinktime_series = blinktimes[noblink_series.name]
+    eprime_sess_orig = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
+                             (ao_eprime['Session']==sess)]  
+    offset_stats = {}
+    for offset in np.arange(-2000, 2500, 500):
+        eprime_sess = eprime_sess_orig.copy()
+        eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset
+        eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
+        offset_stats[offset] = calc_sess_stats(noblink_series, blinktime_series, eprime_sess)
+    tunedf = pd.DataFrame.from_dict(offset_stats)
+    maxparam = tunedf.loc[tuneVar,:].argmax()
+    tuned_results = tunedf.loc[:,maxparam]
+    tuned_results["Offset"] = maxparam
+    tuned_results.name = noblink_series.name
+    return tuned_results
+    
+    
 def get_blink_pct(blinktimes):
     blinkpct = blinktimes.apply(np.mean)
     blinkpct.name = 'blink_pct'
@@ -146,7 +160,7 @@ def get_blink_pct(blinktimes):
     
     
 def calc_subj_stats(noblinkdata, blinktimes, ao_eprime):
-    subj_sess_snr = noblinkdata.apply(calc_sess_stats, args=(blinktimes, ao_eprime))
+    subj_sess_snr = noblinkdata.apply(tune_sess_stats, args=(blinktimes, ao_eprime))
     subj_sess_snr = subj_sess_snr.T
     subj_sess_snr.index = pd.MultiIndex.from_tuples(subj_sess_snr.index)    
     return pd.DataFrame(subj_sess_snr)
@@ -181,7 +195,7 @@ def subj_waveforms(trg_events, std_events, pupilprofile, blinks, **kwargs):
     return mean_subj
 
     
-def plot_dilation(noblinkdata, blinktimes, ao_eprime):
+def plot_dilation(noblinkdata, blinktimes, ao_eprime, offset_info=None):
     all_events = pd.DataFrame(columns=["Subject","Condition","Session","Time","Dilation"])
     for colname, col in noblinkdata.iteritems():
         noblink_series = noblinkdata[colname]
@@ -189,6 +203,9 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime):
         subid, sess = noblink_series.name
         eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
                                      (ao_eprime['Session']==sess)]
+        if offset_info is not None:
+            offset = offset_info.ix[(subid, sess), "Offset"]
+            eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset         
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
         trg_events, std_events = get_events(noblink_series, eprime_sess)
         mean_subj = subj_waveforms(trg_events, std_events, noblink_series, blinktime_series)
@@ -221,7 +238,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     stats_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
     outfile = os.path.join(outdir, stats_fname)
     subj_info_stats.to_csv(outfile, index=False, header=True)    
-    plot_dilation(noblinkdata, blinktimes, ao_eprime)
+    plot_dilation(noblinkdata, blinktimes, ao_eprime, subj_sess_stats)
     
 if __name__ == '__main__':
     if len(sys.argv) == 1:
