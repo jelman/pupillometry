@@ -195,7 +195,7 @@ def subj_waveforms(trg_events, std_events, pupilprofile, blinks, **kwargs):
     return mean_subj
 
     
-def plot_dilation(noblinkdata, blinktimes, ao_eprime, offset_info=None):
+def plot_dilation(noblinkdata, blinktimes, ao_eprime, outdir, offset_info=None):
     all_events = pd.DataFrame(columns=["Subject","Condition","Session","Time","Dilation"])
     for colname, col in noblinkdata.iteritems():
         noblink_series = noblinkdata[colname]
@@ -209,10 +209,17 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime, offset_info=None):
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
         trg_events, std_events = get_events(noblink_series, eprime_sess)
         mean_subj = subj_waveforms(trg_events, std_events, noblink_series, blinktime_series)
+        p = sns.tsplot(data=mean_subj, time="Time", 
+                       condition="Condition", unit="Session", value="Dilation").figure
+        outfile = os.path.join(outdir, str(subid) + '_' + str(sess) + '_PSTC.png')
+        p.savefig(outfile)  
+        p.clear()
         all_events = all_events.append(mean_subj)
         all_events = all_events.groupby(['Subject','Condition','Time'])['Dilation'].mean().reset_index()
-    sns.tsplot(data=all_events, time="Time", 
-       condition="Condition", unit="Subject", value="Dilation")
+    p = sns.tsplot(data=all_events, time="Time", 
+                   condition="Condition", unit="Subject", value="Dilation")
+    outfile = os.path.join(outdir, 'AllSubjects_PSTC.png')
+    p.figure.savefig(outfile)
      
     
 def proc_oddball(pupil_fname, behav_fname, outdir):
@@ -238,7 +245,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     stats_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
     outfile = os.path.join(outdir, stats_fname)
     subj_info_stats.to_csv(outfile, index=False, header=True)    
-    plot_dilation(noblinkdata, blinktimes, ao_eprime, subj_sess_stats)
+    plot_dilation(noblinkdata, blinktimes, ao_eprime, qc_dir, subj_sess_stats)
     
 if __name__ == '__main__':
     if len(sys.argv) == 1:
