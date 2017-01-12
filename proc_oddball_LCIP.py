@@ -118,11 +118,11 @@ def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost_start=1, t
     return np.nanmean(mean_dilations), np.nanmean(max_dilations), np.nanmean(sd_dilations)
   
     
-def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
+def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
     blinktime_series = blinktimes[noblink_series.name]
     subid, sess = noblink_series.name
     eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
-                                 (ao_eprime['Session']==sess)]
+                                 (ao_eprime['Session']==sess)]                        
     eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
     trg_events, std_events = get_events(noblink_series, eprime_sess)
     trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
@@ -145,8 +145,8 @@ def get_blink_pct(blinktimes):
     return blinkpct
     
     
-def calc_subj_snr(noblinkdata, blinktimes, ao_eprime):
-    subj_sess_snr = noblinkdata.apply(calc_sess_snr, args=(blinktimes, ao_eprime))
+def calc_subj_stats(noblinkdata, blinktimes, ao_eprime):
+    subj_sess_snr = noblinkdata.apply(calc_sess_stats, args=(blinktimes, ao_eprime))
     subj_sess_snr = subj_sess_snr.T
     subj_sess_snr.index = pd.MultiIndex.from_tuples(subj_sess_snr.index)    
     return pd.DataFrame(subj_sess_snr)
@@ -215,12 +215,12 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     blink_fname = "Blink_Percentages_" + tstamp + ".csv"
     outfile = os.path.join(qc_dir, blink_fname)
     blinkpct.to_csv(outfile, index=True, header=True)
-    subj_sess_snr = calc_subj_snr(noblinkdata, blinktimes, ao_eprime)
-    subj_info_snr = sessioninfo.merge(subj_sess_snr, left_on=['Subject ID','Session'], right_index=True)
-    subj_info_snr = subj_info_snr.merge(pd.DataFrame(blinkpct), left_on=['Subject ID','Session'], right_index=True)
-    snr_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
-    outfile = os.path.join(outdir, snr_fname)
-    subj_info_snr.to_csv(outfile, index=False, header=True)    
+    subj_sess_stats = calc_subj_stats(noblinkdata, blinktimes, ao_eprime)
+    subj_info_stats = sessioninfo.merge(subj_sess_stats, left_on=['Subject ID','Session'], right_index=True)
+    subj_info_stats = subj_info_stats.merge(pd.DataFrame(blinkpct), left_on=['Subject ID','Session'], right_index=True)
+    stats_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
+    outfile = os.path.join(outdir, stats_fname)
+    subj_info_stats.to_csv(outfile, index=False, header=True)    
     plot_dilation(noblinkdata, blinktimes, ao_eprime)
     
 if __name__ == '__main__':
