@@ -98,21 +98,24 @@ def get_events(pupilprofile, eprime):
 def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
     mean_dilations = []
     max_dilations = []
+    sd_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
         post_event_start = event + pd.tseries.offsets.relativedelta(seconds=tpost_start)
         post_event_end = event + pd.tseries.offsets.relativedelta(seconds=tpost_end)
-        if blinks[event:post_event_end].mean() >= .5:
+        if blinks[pre_event:post_event_end].mean() >= .50:
             print 'Blinks during >50% of trial, skipping...'
             continue
         else:
             normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
             mean_dil = normed_post_event.mean()
             max_dil = normed_post_event.max()
+            sd_dil = normed_post_event.std()
             mean_dilations.append(mean_dil)
             max_dilations.append(max_dil)
-    return np.nanmean(mean_dilations), np.nanmean(max_dilations)
+            sd_dilations.append(sd_dil)
+    return np.nanmean(mean_dilations), np.nanmean(max_dilations), np.nanmean(sd_dilations)
   
     
 def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
@@ -122,13 +125,15 @@ def calc_sess_snr(noblink_series, blinktimes, ao_eprime):
                                  (ao_eprime['Session']==sess)]
     eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
     trg_events, std_events = get_events(noblink_series, eprime_sess)
-    trg_mean_dil, trg_max_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
-    std_mean_dil, std_max_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
+    trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
+    std_mean_dil, std_max_dil, std_sd_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
     sess_snr_max = trg_max_dil / std_max_dil
     sess_snr_mean = trg_mean_dil / std_mean_dil 
+    sess_cnr = (trg_max_dil - std_max_dil) / std_sd_dil
     resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
                       Std_max = std_max_dil, Std_mean = std_mean_dil,
-                      SNR_max=sess_snr_max, SNR_mean=sess_snr_mean)
+                      SNR_max=sess_snr_max, SNR_mean=sess_snr_mean,
+                      CNR=sess_cnr)
     return pd.Series(resultdict)
    
    
@@ -152,7 +157,7 @@ def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=2, pl
     pltpre_event = event - pd.tseries.offsets.relativedelta(seconds=pltpre)
     baseline = pupilprofile[base_event:event].mean()
     post_event = event + pd.tseries.offsets.relativedelta(seconds=pltpost)
-    if blinks[event:post_event].mean() >= .5:
+    if blinks[base_event:post_event].mean() >= .50:
         print 'Blinks during >50% of trial, skipping...'
     else:
         normed_event = pupilprofile[pltpre_event:post_event] - baseline
