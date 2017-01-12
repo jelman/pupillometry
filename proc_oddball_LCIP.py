@@ -95,20 +95,19 @@ def get_events(pupilprofile, eprime):
     return trg_events, std_events
 
 
-def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost_start=1, tpost_end=2):
+def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost=2):
     mean_dilations = []
     max_dilations = []
     sd_dilations = []
     for event in events:
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
-        post_event_start = event + pd.tseries.offsets.relativedelta(seconds=tpost_start)
-        post_event_end = event + pd.tseries.offsets.relativedelta(seconds=tpost_end)
-        if blinks[pre_event:post_event_end].mean() >= .50:
+        post_event = event + pd.tseries.offsets.relativedelta(seconds=tpost)
+        if blinks[pre_event:post_event].mean() >= .50:
             print 'Blinks during >50% of trial, skipping...'
             continue
         else:
-            normed_post_event = pupilprofile[post_event_start:post_event_end] - baseline
+            normed_post_event = pupilprofile[event:post_event] - baseline
             mean_dil = normed_post_event.mean()
             max_dil = normed_post_event.max()
             sd_dil = normed_post_event.std()
@@ -242,7 +241,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     subj_sess_stats = calc_subj_stats(noblinkdata, blinktimes, ao_eprime)
     subj_info_stats = sessioninfo.merge(subj_sess_stats, left_on=['Subject ID','Session'], right_index=True)
     subj_info_stats = subj_info_stats.merge(pd.DataFrame(blinkpct), left_on=['Subject ID','Session'], right_index=True)
-    stats_fname = 'LCIP_Oddball_SNR_' + tstamp + '.csv'
+    stats_fname = 'LCIP_Oddball_Stats_' + tstamp + '.csv'
     outfile = os.path.join(outdir, stats_fname)
     subj_info_stats.to_csv(outfile, index=False, header=True)    
     plot_dilation(noblinkdata, blinktimes, ao_eprime, qc_dir, subj_sess_stats)
@@ -264,6 +263,6 @@ if __name__ == '__main__':
 #########################################################
 #                         TESTING                       #
 #########################################################
-pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
-behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
-outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
+#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
+#outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
