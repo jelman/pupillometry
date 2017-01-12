@@ -217,7 +217,7 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime, offset_info=None):
     
 def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
-    parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
+    parsed_df = parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
     parsed_df = parsed_df.ix[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
