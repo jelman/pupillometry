@@ -165,7 +165,7 @@ def calc_subj_stats(noblinkdata, blinktimes, ao_eprime):
     return pd.DataFrame(subj_sess_snr)
     
 
-def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=2, pltpost=4):
+def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=1, pltpost=4):
     base_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
     pltpre_event = event - pd.tseries.offsets.relativedelta(seconds=pltpre)
     baseline = pupilprofile[base_event:event].mean()
@@ -185,10 +185,10 @@ def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=2, pl
 def subj_waveforms(trg_events, std_events, pupilprofile, blinks, **kwargs):
     subj_events = pd.DataFrame(columns=["Subject","Session","Condition","Time","Dilation"])
     for trg_event in trg_events:
-        normed_event = event_waveform(trg_event, pupilprofile, blinks, "Target", tpre=.5, pltpre=2, pltpost=4)
+        normed_event = event_waveform(trg_event, pupilprofile, blinks, "Target", tpre=.5, pltpre=1, pltpost=4)
         subj_events = subj_events.append(normed_event, ignore_index=True)
     for std_event in std_events:
-        normed_event = event_waveform(std_event, pupilprofile, blinks, "Standard", tpre=.5, pltpre=2, pltpost=4)
+        normed_event = event_waveform(std_event, pupilprofile, blinks, "Standard", tpre=.5, pltpre=1, pltpost=4)
         subj_events = subj_events.append(normed_event, ignore_index=True)
     mean_subj = subj_events.groupby(['Subject','Condition','Session','Time'])['Dilation'].mean().reset_index()    
     return mean_subj
