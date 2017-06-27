@@ -131,13 +131,13 @@ def calc_sess_stats(noblink_series, blinktime_series, eprime_sess):
     return pd.Series(resultdict)
    
 
-def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="CNR"):
+def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="Trg_mean"):
     subid, sess = noblink_series.name
     blinktime_series = blinktimes[noblink_series.name]
     eprime_sess_orig = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
                              (ao_eprime['Session']==sess)]  
     offset_stats = {}
-    for offset in np.arange(-2000, 2500, 500):
+    for offset in np.arange(-3000, 3000, 200):
         eprime_sess = eprime_sess_orig.copy()
         eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
