@@ -118,16 +118,23 @@ def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost=2):
   
     
 def calc_sess_stats(noblink_series, blinktime_series, eprime_sess):
+    """
+    DIFF: Target max - Standard max
+    CNR1: Target max / Standard SD
+    CNR2: (Target max - Standard max) / Standard SD
+    CNR3: Target SD / Standard SD
+    """
     trg_events, std_events = get_events(noblink_series, eprime_sess)
     trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
     std_mean_dil, std_max_dil, std_sd_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
-    sess_snr_max = trg_max_dil / std_max_dil
-    sess_snr_mean = trg_mean_dil / std_mean_dil 
-    sess_cnr = (trg_max_dil - std_max_dil) / std_sd_dil
+    sess_diff = trg_max_dil - std_max_dil
+    sess_cnr1 = trg_max_dil / std_sd_dil
+    sess_cnr2 = (trg_max_dil - std_max_dil) / std_sd_dil
+    sess_cnr3 = trg_sd_dil / std_sd_dil
     resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
                       Std_max = std_max_dil, Std_mean = std_mean_dil,
-                      SNR_max=sess_snr_max, SNR_mean=sess_snr_mean,
-                      CNR=sess_cnr)
+                      DIFF = sess_diff, CNR1 = sess_cnr1, 
+                      CNR2 = sess_cnr2, CNR3 = sess_cnr3)
     return pd.Series(resultdict)
    
 
