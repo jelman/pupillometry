@@ -103,8 +103,8 @@ def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost=2):
         pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
         baseline = pupilprofile[pre_event:event].mean()
         post_event = event + pd.tseries.offsets.relativedelta(seconds=tpost)
-        if blinks[pre_event:post_event].mean() >= .50:
-            print 'Blinks during >50% of trial, skipping...'
+        if blinks[pre_event:post_event].mean() >= .33:
+            print 'Blinks during >33% of trial, skipping...'
             continue
         else:
             normed_post_event = pupilprofile[event:post_event] - baseline
@@ -138,13 +138,13 @@ def calc_sess_stats(noblink_series, blinktime_series, eprime_sess):
     return pd.Series(resultdict)
    
 
-def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="Trg_mean"):
+def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="Trg_max"):
     subid, sess = noblink_series.name
     blinktime_series = blinktimes[noblink_series.name]
     eprime_sess_orig = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
                              (ao_eprime['Session']==sess)]  
     offset_stats = {}
-    for offset in np.arange(-3000, 3000, 200):
+    for offset in np.arange(-2000, 2000, 250):
         eprime_sess = eprime_sess_orig.copy()
         eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
@@ -177,8 +177,8 @@ def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=1, pl
     pltpre_event = event - pd.tseries.offsets.relativedelta(seconds=pltpre)
     baseline = pupilprofile[base_event:event].mean()
     post_event = event + pd.tseries.offsets.relativedelta(seconds=pltpost)
-    if blinks[base_event:post_event].mean() >= .50:
-        print 'Blinks during >50% of trial, skipping...'
+    if blinks[base_event:post_event].mean() >= .33:
+        print 'Blinks during >33% of trial, skipping...'
     else:
         normed_event = pupilprofile[pltpre_event:post_event] - baseline
         normed_event.index = (normed_event.index - event) / np.timedelta64(1, 's')
@@ -192,10 +192,10 @@ def event_waveform(event, pupilprofile, blinks, condition, tpre=.5, pltpre=1, pl
 def subj_waveforms(trg_events, std_events, pupilprofile, blinks, **kwargs):
     subj_events = pd.DataFrame(columns=["Subject","Session","Condition","Time","Dilation"])
     for trg_event in trg_events:
-        normed_event = event_waveform(trg_event, pupilprofile, blinks, "Target", tpre=.5, pltpre=1, pltpost=4)
+        normed_event = event_waveform(trg_event, pupilprofile, blinks, "Target")
         subj_events = subj_events.append(normed_event, ignore_index=True)
     for std_event in std_events:
-        normed_event = event_waveform(std_event, pupilprofile, blinks, "Standard", tpre=.5, pltpre=1, pltpost=4)
+        normed_event = event_waveform(std_event, pupilprofile, blinks, "Standard")
         subj_events = subj_events.append(normed_event, ignore_index=True)
     mean_subj = subj_events.groupby(['Subject','Condition','Session','Time'])['Dilation'].mean().reset_index()    
     return mean_subj
