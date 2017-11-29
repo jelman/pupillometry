@@ -240,7 +240,7 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime, outdir, offset_info=None):
         eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
                                      (ao_eprime['Session']==sess)]
         if offset_info is not None:
-            offset = offset_info.ix[(subid, sess), "Offset"]
+            offset = offset_info.loc[(subid, sess), "Offset"]
             eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset         
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
         trg_events, std_events = get_events(noblink_series, eprime_sess)
@@ -262,7 +262,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
     parsed_df = parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
-    parsed_df = parsed_df.ix[fulltrials]
+    parsed_df = parsed_df.loc[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
     ao_eprime.loc[:,'Tone_Onset'] = ao_eprime['Tone_Onset'] + 3000
     sessioninfo = parsed_df[['Subject ID', 'Time', 'Session', 'Device ID', 'Eye Measured']]
@@ -300,6 +300,6 @@ if __name__ == '__main__':
 #########################################################
 #                         TESTING                       #
 #########################################################
-#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
-#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
+#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20171121_0713_1340_combined.dat.txt'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_11282017.csv'
 #outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
