@@ -2,6 +2,10 @@
 """
 Created on Fri Dec  2 14:08:17 2016
 
+This is the second script to run on data from the pupillometer. 
+Takes as input the parsed digit span data created by parse_ds_plr.py and 
+the data from behavioral session with timestamps linked to QC and condition.
+Outputs data in the template form used by Granholm lab matlab scripts. 
 @author: jelman
 """
 
