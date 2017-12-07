@@ -172,6 +172,7 @@ def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
     CNR1: Target max / Standard SD
     CNR2: (Target max - Standard max) / Standard SD
     CNR3: Target SD / Standard SD
+    CNR4: (Target max - Standard max) / Standard max
     """
     subid, sess = noblink_series.name
     blinktime_series = blinktimes[noblink_series.name]
@@ -187,11 +188,13 @@ def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
     sess_cnr1 = trg_max_dil / std_sd_dil
     sess_cnr2 = (trg_max_dil - std_max_dil) / std_sd_dil
     sess_cnr3 = trg_sd_dil / std_sd_dil
+    sess_cnr4 = (trg_max_dil - std_max_dil) / std_max_dil
+
     resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
                       Std_max = std_max_dil, Std_mean = std_mean_dil,
                       DIFF = sess_diff, CNR1 = sess_cnr1, 
                       CNR2 = sess_cnr2, CNR3 = sess_cnr3, 
-                      Offset=offset)
+                      CNR4 = sess_cnr4, Offset=offset)
     return pd.Series(resultdict)
   
     
@@ -301,5 +304,5 @@ if __name__ == '__main__':
 #                         TESTING                       #
 #########################################################
 #pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20171121_0713_1340_combined.dat.txt'
-#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_11282017.csv'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12042017.csv'
 #outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'
