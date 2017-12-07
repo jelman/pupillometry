@@ -115,46 +115,47 @@ def calc_trial_dilations(events, pupilprofile, blinks, tpre=.5, tpost=2):
             max_dilations.append(max_dil)
             sd_dilations.append(sd_dil)
     return np.nanmean(mean_dilations), np.nanmean(max_dilations), np.nanmean(sd_dilations)
-  
-    
-def calc_sess_stats(noblink_series, blinktime_series, eprime_sess):
-    """
-    DIFF: Target max - Standard max
-    CNR1: Target max / Standard SD
-    CNR2: (Target max - Standard max) / Standard SD
-    CNR3: Target SD / Standard SD
-    """
-    trg_events, std_events = get_events(noblink_series, eprime_sess)
-    trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
-    std_mean_dil, std_max_dil, std_sd_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
-    sess_diff = trg_max_dil - std_max_dil
-    sess_cnr1 = trg_max_dil / std_sd_dil
-    sess_cnr2 = (trg_max_dil - std_max_dil) / std_sd_dil
-    sess_cnr3 = trg_sd_dil / std_sd_dil
-    resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
-                      Std_max = std_max_dil, Std_mean = std_mean_dil,
-                      DIFF = sess_diff, CNR1 = sess_cnr1, 
-                      CNR2 = sess_cnr2, CNR3 = sess_cnr3)
-    return pd.Series(resultdict)
-   
 
-def tune_sess_stats(noblink_series, blinktimes, ao_eprime, tuneVar="Trg_max"):
-    subid, sess = noblink_series.name
-    blinktime_series = blinktimes[noblink_series.name]
-    eprime_sess_orig = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
-                             (ao_eprime['Session']==sess)]  
+
+def h_pupil(t,n=10.1,t_max=930,f=1./(10**27) ):
+  # n+1 = number of laters
+  # t_max = response maximum
+  # f = scaling factor
+  h = f*(t**n)*np.exp(-n*t/t_max)
+  h[0] = 0
+  return h
+
+   
+def calc_prf_fit(pupilprofile, blinks, eprime_sess, tpre=.2, tpost=4):
+    trg_events, std_events = get_events(pupilprofile, eprime_sess)
+    tuneparlist = []
+    for event in trg_events:
+        pre_event = event - pd.tseries.offsets.relativedelta(seconds=tpre)
+        baseline = pupilprofile[pre_event:event].mean()
+        post_event = event + pd.tseries.offsets.relativedelta(seconds=tpost)
+        if blinks[pre_event:post_event].mean() >= .33:
+            print 'Blinks during >33% of trial, skipping...'
+            continue
+        else:
+            normed_post_event = pupilprofile[event:post_event] - baseline
+            t = np.linspace(0,tpost,len(normed_post_event)) * 1000
+            prf = h_pupil(t)
+            tunepar = np.sum(normed_post_event * prf)
+            tuneparlist.append(tunepar)
+    return np.median(tuneparlist)
+    
+    
+    
+def tune_offset(noblink_series, blinktime_series, eprime_sess):
     offset_stats = {}
-    for offset in np.arange(-2000, 2000, 250):
-        eprime_sess = eprime_sess_orig.copy()
-        eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset
-        eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
-        offset_stats[offset] = calc_sess_stats(noblink_series, blinktime_series, eprime_sess)
-    tunedf = pd.DataFrame.from_dict(offset_stats)
-    maxparam = tunedf.loc[tuneVar,:].argmax()
-    tuned_results = tunedf.loc[:,maxparam]
-    tuned_results["Offset"] = maxparam
-    tuned_results.name = noblink_series.name
-    return tuned_results
+    for offset in np.arange(-2500, 2500, 250):
+        eprime_sess_copy = eprime_sess.copy()
+        eprime_sess_copy.loc[:,'Tone_Onset'] = eprime_sess_copy.Tone_Onset + offset
+        eprime_sess_copy.index = pd.to_datetime(list(eprime_sess_copy.Tone_Onset), unit='ms')
+        offset_stats[offset] = calc_prf_fit(noblink_series, blinktime_series, eprime_sess_copy)
+    tuneSeries = pd.Series(offset_stats)
+    maxparam = tuneSeries.argmax()
+    return maxparam
     
     
 def get_blink_pct(blinktimes):
@@ -163,10 +164,42 @@ def get_blink_pct(blinktimes):
     blinkpct.index = pd.MultiIndex.from_tuples(blinkpct.index) 
     blinkpct.index.names = ['Subject ID', 'Session']
     return blinkpct
-    
+
+
+def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
+    """
+    DIFF: Target max - Standard max
+    CNR1: Target max / Standard SD
+    CNR2: (Target max - Standard max) / Standard SD
+    CNR3: Target SD / Standard SD
+    CNR4: (Target max - Standard max) / Standard max
+    """
+    subid, sess = noblink_series.name
+    blinktime_series = blinktimes[noblink_series.name]
+    eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
+                             (ao_eprime['Session']==sess)] 
+    offset = tune_offset(noblink_series, blinktime_series, eprime_sess)
+    eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset
+    eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
+    trg_events, std_events = get_events(noblink_series, eprime_sess)
+    trg_mean_dil, trg_max_dil, trg_sd_dil = calc_trial_dilations(trg_events, noblink_series, blinktime_series)
+    std_mean_dil, std_max_dil, std_sd_dil = calc_trial_dilations(std_events, noblink_series, blinktime_series)
+    sess_diff = trg_max_dil - std_max_dil
+    sess_cnr1 = trg_max_dil / std_sd_dil
+    sess_cnr2 = (trg_max_dil - std_max_dil) / std_sd_dil
+    sess_cnr3 = trg_sd_dil / std_sd_dil
+    sess_cnr4 = (trg_max_dil - std_max_dil) / std_max_dil
+
+    resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
+                      Std_max = std_max_dil, Std_mean = std_mean_dil,
+                      DIFF = sess_diff, CNR1 = sess_cnr1, 
+                      CNR2 = sess_cnr2, CNR3 = sess_cnr3, 
+                      CNR4 = sess_cnr4, Offset=offset)
+    return pd.Series(resultdict)
+  
     
 def calc_subj_stats(noblinkdata, blinktimes, ao_eprime):
-    subj_sess_snr = noblinkdata.apply(tune_sess_stats, args=(blinktimes, ao_eprime))
+    subj_sess_snr = noblinkdata.apply(calc_sess_stats, args=(blinktimes, ao_eprime))
     subj_sess_snr = subj_sess_snr.T
     subj_sess_snr.index = pd.MultiIndex.from_tuples(subj_sess_snr.index)    
     return pd.DataFrame(subj_sess_snr)
@@ -210,7 +243,7 @@ def plot_dilation(noblinkdata, blinktimes, ao_eprime, outdir, offset_info=None):
         eprime_sess = ao_eprime[(ao_eprime['Subject_ID']==subid) & 
                                      (ao_eprime['Session']==sess)]
         if offset_info is not None:
-            offset = offset_info.ix[(subid, sess), "Offset"]
+            offset = offset_info.loc[(subid, sess), "Offset"]
             eprime_sess.loc[:,'Tone_Onset'] = eprime_sess.Tone_Onset + offset         
         eprime_sess.index = pd.to_datetime(list(eprime_sess.Tone_Onset), unit='ms')
         trg_events, std_events = get_events(noblink_series, eprime_sess)
@@ -232,7 +265,7 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     parsed_df =  parse_ao.parse_pupil_data(pupil_fname, outdir)
     parsed_df = parsed_df[~parsed_df['Subject ID'].str.contains("LCIP99")]
     fulltrials = parsed_df['Measurement Duration'].str.replace('sec','').astype('float') > 290
-    parsed_df = parsed_df.ix[fulltrials]
+    parsed_df = parsed_df.loc[fulltrials]
     ao_eprime = pd.read_csv(behav_fname)
     ao_eprime.loc[:,'Tone_Onset'] = ao_eprime['Tone_Onset'] + 3000
     sessioninfo = parsed_df[['Subject ID', 'Time', 'Session', 'Device ID', 'Eye Measured']]
@@ -270,6 +303,6 @@ if __name__ == '__main__':
 #########################################################
 #                         TESTING                       #
 #########################################################
-#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20161207_1224_20161207_1311.dat.txt'
-#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12232016.csv'
+#pupil_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/raw/R_20171121_0713_1340_combined.dat.txt'
+#behav_fname = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/behavioral/raw/oddball/OddballP300_LCI_Pilot_AllSubjects_12042017.csv'
 #outdir = '/home/jelman/netshare/VETSA_NAS/PROJ/LCIP/data/pupillometry/task_data'

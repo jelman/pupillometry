@@ -1,4 +1,4 @@
-function avgdata = proc_ds_VETSA(filename,graphics,nobasecal,basestart,baselength);
+function avgdata = proc_ds_LCIP(filename,graphics,nobasecal,basestart,baselength);
 
 % USAGE: avgdata = proc_ds_new (filename,graphics,basestart,baselength);
 %
@@ -83,7 +83,7 @@ alldata = dataset('File', filename, 'Delimiter', ',');
 
 Nrecordings = size(alldata,1); % number of valid recordings
 
-header = alldata.Properties.VarNames(1:8);
+header = alldata.Properties.VarNames(1:11);
 
 IDcol = strmatch('ID',header);
 ID = alldata.(IDcol); 
@@ -235,66 +235,66 @@ for s = 1:length(subjects)
         tempdata.Suspect= any(abs(tempdata.NormedPupTrials)>threshold,2);
         
         drops=tempdata.Suspect;
-        if graphics
-            if ~exist('h1','var')
-                h1=figure('Name','Diagnostic plot');
-            else figure(h1); clf;
-            end;
-            subplot(4,1,1); bar(tempdata.Suspect); ylabel('suspect');
-            title(subjects(s));
-        end
+%         if graphics
+%             if ~exist('h1','var')
+%                 h1=figure('Name','Diagnostic plot');
+%             else figure(h1); clf;
+%             end;
+%             subplot(4,1,1); bar(tempdata.Suspect); ylabel('suspect');
+%             title(subjects(s));
+%         end
         
         % drop short trials
         if strfind(header{TRcol},'PLR')
             drops=drops+(sum(tempdata.RawPupilTrials(:,1:124)==0,2)>1);
             tempdata.cond = ones(1,length(drops));
-            if graphics subplot(4,1,3); bar(sum(tempdata.RawPupilTrials(:,1:124)==0,2)>1); ylabel('short trial'); end
+%             if graphics subplot(4,1,3); bar(sum(tempdata.RawPupilTrials(:,1:124)==0,2)>1); ylabel('short trial'); end
         elseif strfind(header{TRcol},'DS')
             dropsDS = zeros(length(drops),1);
             tempdata.cond = zeros(1,length(drops));
             
-            indDS = strmatch('S3',DS(ind));
+            indDS = strmatch('3',DS(ind));
             tempdata.cond(indDS) = 3;
             % drop trials with >50% blinks in the 0-4s (4*sf samples) range
             % for condition 3
             dropsDS(indDS) = sum(tempdata.BlinkTrials(indDS,1:4*sf),2)> floor(4*sf/2);
 %             dropsDS(indDS) = (sum(tempdata.RawPupilTrials(indDS,condsamp{find(conds==3)})==0,2)> floor(sf/2));
             
-            indDS = strmatch('S6',DS(ind));
+            indDS = strmatch('6',DS(ind));
             tempdata.cond(indDS) = 6;
             % drop trials with >50% blinks in the 0-7s (7*sf samples) range
             % for condition 6
             dropsDS(indDS) = sum(tempdata.BlinkTrials(indDS,1:7*sf),2)> floor(7*sf/2);
 %             dropsDS(indDS) = (sum(tempdata.RawPupilTrials(indDS,condsamp{find(conds==6)})==0,2)> floor(sf/2));
             
-            indDS = strmatch('S9',DS(ind));
+            indDS = strmatch('9',DS(ind));
             tempdata.cond(indDS) = 9;
             % drop trials with >50% blinks in the 0-10s (10*sf samples) range
             % for condition 9
             dropsDS(indDS) = sum(tempdata.BlinkTrials(indDS,1:10*sf),2)> floor(10*sf/2);
 %             dropsDS(indDS) = (sum(tempdata.RawPupilTrials(indDS,condsamp{find(conds==9)})==0,2)> floor(sf/2));
             
-            if graphics subplot(4,1,2); bar(dropsDS); ylabel('> 50% blinks in 0-X critical period'); end
+%             if graphics subplot(4,1,2); bar(dropsDS); ylabel('> 50% blinks in 0-X critical period'); end
             drops = drops+dropsDS;
         end
         
         if nobasecal==0 % baseline calculation required
             % drop blinks around the onset of the stimulus
             drops=drops+(sum(tempdata.BlinkTrials(:,basestart:basestart+baselength-1),2)> floor(baselength/2));
-            if graphics subplot(4,1,4); bar(sum(tempdata.BlinkTrials(:,basestart:basestart+baselength-1),2)> floor(baselength/2)); ylabel('blink at onset'); end
-        else
-            if graphics subplot(4,1,4); title('baseline calculation ignored'); end
+%             if graphics subplot(4,1,4); bar(sum(tempdata.BlinkTrials(:,basestart:basestart+baselength-1),2)> floor(baselength/2)); ylabel('blink at onset'); end
+%         else
+%             if graphics subplot(4,1,4); title('baseline calculation ignored'); end
         end
         
         tempdata.drops=drops>0;
     else
         tempdata.drops = ones(size(ind)); %if only one trial, it will be dropped
-        tempdata.cond = str2num(DS{ind}(2));
+        tempdata.cond = DS(ind);
         
-        if graphics
-            figure(h1); clf; subplot(4,1,1); bar(tempdata.drops); ylabel('dropped');
-            title(subjects(s));
-        end;
+%         if graphics
+%              figure(h1); clf; subplot(4,1,1); bar(tempdata.drops); ylabel('dropped');
+%              title(subjects(s));
+%        end;
     end;
     
     %loop through conditions
@@ -353,20 +353,20 @@ for s = 1:length(subjects)
     
     if graphics
         
-        for icond = 1:3 % 3 conditions ('3/6/9') in DS experiment
+%        for icond = 1:3 % 3 conditions ('3/6/9') in DS experiment
             if ~exist('h2','var')
                 h2=figure('Name','Trials','Color','w','Position',[1101 60 560 891]);
             else
-                figure(h2)
-                clf;
+                 clf(h2)
+                %clf;
             end;
-            
-            for t = icond*4-3:icond*4 %size(tempdata.NormedPupTrials,1)
-                isubplot = mod(t,4);
+            tottrials = size(tempdata.NormedPupTrials,1);
+            for t = 1:size(tempdata.NormedPupTrials,1)
+                isubplot = t;
                 if isubplot ==0
                     isubplot = 4;
                 end
-                subplot(5,1,isubplot) % each condition has 4 trials
+                subplot(tottrials+1,1,isubplot) % each condition has 4 trials
                 plot(data.TrialSeconds, tempdata.BlinkTrials(t,:),'Color',[255 153 153]/255); hold on;
                 plot(data.TrialSeconds, tempdata.RawPupilTrials(t,:), 'g')
                 if strfind(header{TRcol},'PLR')
@@ -384,7 +384,7 @@ for s = 1:length(subjects)
                 end
                 
                 if ~isempty(find(tempdata.drops<1))
-                    subplot(5,1,5) % show mean for each condition
+                    subplot(tottrials+1,1,tottrials+1) % show mean for each condition
                     plot(data.TrialSeconds,squeeze(avgdata.CleanPupData(s,:,:)))
                     titletxt = sprintf('%s Average N=',avgdata.id{s});
                     titletxt1 = sprintf('%i ',avgdata.ntr(s,:));
@@ -392,23 +392,26 @@ for s = 1:length(subjects)
                 end
                 
             end
+            
+             %report dropped trials for this subject
+            fprintf('Dropped trials for %s: ',avgdata.id{s});
+            if length(find(tempdata.drops<1))==length(ind)
+                fprintf ('none \n');
+            elseif length(find(tempdata.drops==1))>0
+                fprintf ('%i ',find(tempdata.drops==1));
+                fprintf('\n');
+            end
+            
             % pause to allow time to check the figure for each subject,
             % each condition
             if graphics
                 pause
             end
-        end
+%        end
 
     end;
     
-    %report dropped trials for this subject
-    fprintf('Dropped trials for %s: ',avgdata.id{s});
-    if length(find(tempdata.drops<1))==length(ind)
-        fprintf ('none \n');
-    elseif length(find(tempdata.drops==1))>0
-        fprintf ('%i ',find(tempdata.drops==1));
-        fprintf('\n');
-    end
+
     
     
 end;
