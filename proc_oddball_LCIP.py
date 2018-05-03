@@ -154,7 +154,7 @@ def tune_offset(noblink_series, blinktime_series, eprime_sess):
         eprime_sess_copy.index = pd.to_datetime(list(eprime_sess_copy.Tone_Onset), unit='ms')
         offset_stats[offset] = calc_prf_fit(noblink_series, blinktime_series, eprime_sess_copy)
     tuneSeries = pd.Series(offset_stats)
-    maxparam = tuneSeries.argmax()
+    maxparam = tuneSeries.idxmax()
     return maxparam
     
     
@@ -190,8 +190,8 @@ def calc_sess_stats(noblink_series, blinktimes, ao_eprime):
     sess_cnr3 = trg_sd_dil / std_sd_dil
     sess_cnr4 = (trg_max_dil - std_max_dil) / std_max_dil
 
-    resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil,
-                      Std_max = std_max_dil, Std_mean = std_mean_dil,
+    resultdict = dict(Trg_max = trg_max_dil, Trg_mean = trg_mean_dil, Trg_sd = trg_sd_dil,
+                      Std_max = std_max_dil, Std_mean = std_mean_dil, Std_sd = std_sd_dil,
                       DIFF = sess_diff, CNR1 = sess_cnr1, 
                       CNR2 = sess_cnr2, CNR3 = sess_cnr3, 
                       CNR4 = sess_cnr4, Offset=offset)
@@ -273,8 +273,14 @@ def proc_oddball(pupil_fname, behav_fname, outdir):
     if not os.path.exists(qc_dir):
         os.makedirs(qc_dir)
     noblinkdata, blinktimes = clean_all(parsed_df, qc_dir=qc_dir)
-    blinkpct = get_blink_pct(blinktimes)
     tstamp = datetime.now().strftime("%Y%m%d")
+    noblinkfname = "LCIP_Oddball_NoBlinkData" + tstamp + ".csv"
+    outfile = os.path.join(outdir, noblinkfname)
+    noblinkdata.to_csv(outfile, index=True, header=True)
+    blinktimesfname = "LCIP_Oddball_BlinkTimes" + tstamp + ".csv"
+    outfile = os.path.join(outdir, blinktimesfname)
+    blinktimes.to_csv(outfile, index=True, header=True)
+    blinkpct = get_blink_pct(blinktimes)
     blink_fname = "Blink_Percentages_" + tstamp + ".csv"
     outfile = os.path.join(qc_dir, blink_fname)
     blinkpct.to_csv(outfile, index=True, header=True)
