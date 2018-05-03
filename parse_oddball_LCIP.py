@@ -37,35 +37,24 @@ def clean_text(lines):
     return lines
 
 
+def multi_delete(list_, indexes):
+    indexes = sorted(list(indexes), reverse=True)
+    for index in indexes:
+        del list_[index]
+    return list_
+
 def join_multilines(lines):
-    # Add blank space to end so that loop will include last element in list
-    lines.append('')
-    # Create iterator
-    iterlines = iter(lines)
-    # Initialize results container
-    results = []
-    # Initialize previous line variable
-    prev = next(iterlines)
-    # Begin looping. Join multi-line elements and place breakpoints between trials
-    for line in iterlines:
-        if re.search("= $", prev):
-            results.append(prev+line)
-            prev = next(iterlines)
-        elif (prev=='' and line==''):
-            results.append('BREAK')
-            prev = next(iterlines)
-            continue
-        else:
-            results.append(prev)
-            prev = line
-    return results
-
-
+    break_idx = [ i for i, item in enumerate(lines) if item.endswith("= ") ]
+    for i in break_idx:
+        lines[i] = ''.join(lines[i:i+2])
+    del_idx = [x+1 for x in break_idx]
+    lines = multi_delete(lines, del_idx)
+    return lines
+    
 def split_trial_lists(lines):
     # Break list into sublists of trials
-    sublists = [list(x[1]) for x in itertools.groupby(lines, lambda x: x=='BREAK') if not x[0]]
+    sublists = [list(x[1]) for x in itertools.groupby(lines, lambda x: x=='') if not x[0]]
     return sublists
-
 
 def find_lcip_subs(trial_lists):
     # Find and return only trials of LCIP subjects
